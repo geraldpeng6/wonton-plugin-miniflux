@@ -177,13 +177,17 @@ configs:
       INSERT INTO api_keys (user_id, token, description)
       SELECT id, :'token', 'MCP' FROM users WHERE lower(username) = lower(:'owner')
       ON CONFLICT (user_id, description) DO UPDATE SET token = excluded.token;
+      -- 只在主人还没打开过网页时设成中文：代理认证第一次进网页就记 last_login_at，
+      -- 之后这条不再生效，不覆盖主人在设置里自己选的语言。
+      UPDATE users SET language = 'zh_CN'
+      WHERE lower(username) = lower(:'owner') AND last_login_at IS NULL;
       -- 账号不存在时报错（除零），不假装成功。
       SELECT 1 / count(*) FROM users WHERE lower(username) = lower(:'owner');
 
 x-wonton:
   spec: "0.4"
   id: app.miniflux.miniflux
-  version: 0.1.1
+  version: 0.1.2
   kind: app
   title: { en: Miniflux }
   description:
@@ -210,7 +214,7 @@ x-wonton:
       Follow sites and blogs in one place and read their updates. Filter by rules, and mark entries read or unread.
 
       The bot can list unread entries, search and mark them read; the tools carry no read-only hints, so each call waits for your confirmation.
-  release_notes: { zh: 名字和说明更新。, en: Product name and description update. }
+  release_notes: { zh: 新安装的用户界面默认中文。, en: New installs now start with a Chinese interface. }
   webui:
     service: miniflux
     port: 8080
