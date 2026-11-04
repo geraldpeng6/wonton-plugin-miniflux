@@ -1,7 +1,7 @@
-# Miniflux：极简 RSS 阅读器。主人订阅、过滤和阅读自己的订阅源；Bot 经 MCP 列出未读、搜索、标记已读。
+# Miniflux：极简 RSS 阅读器。用户订阅、过滤和阅读自己的订阅源；Bot 经 MCP 列出未读、搜索、标记已读。
 #
-# 网页走网关代登录：Miniflux 认 AUTH_PROXY_HEADER，网关认出主人后带上 Remote-User，进去就是主人，没有第二个登录页。
-# DISABLE_LOCAL_AUTH 关掉本地密码登录，剩下的密码只用来在首次启动时建好主人这个管理员账号。
+# 网页走网关代登录：Miniflux 认 AUTH_PROXY_HEADER，网关认出用户后带上 Remote-User，进去就是用户，没有第二个登录页。
+# DISABLE_LOCAL_AUTH 关掉本地密码登录，剩下的密码只用来在首次启动时建好用户这个管理员账号。
 # 只信任核心在这个网络里的地址：核心注入 WONTON_CORE_ADDRESS，来源不是它就忽略 Remote-User。
 # 宿主进程、其他出网插件经代理连进来都冒充不了（ADR-0023）。
 #
@@ -45,8 +45,8 @@ services:
       DATABASE_URL: postgres://miniflux:${WONTON_SECRET_DB_PASSWORD:?核心没有注入数据库密码}@db:5432/miniflux?sslmode=disable
       BASE_URL: ${WONTON_APP_URL:?核心没有注入插件网页地址}
       CREATE_ADMIN: "1"
-      ADMIN_USERNAME: ${WONTON_OWNER_NAME:?核心没有注入主人用户名}
-      ADMIN_PASSWORD: ${WONTON_SECRET_OWNER_PASSWORD:?核心没有注入主人密码}
+      ADMIN_USERNAME: ${WONTON_OWNER_NAME:?核心没有注入用户名}
+      ADMIN_PASSWORD: ${WONTON_SECRET_OWNER_PASSWORD:?核心没有注入用户密码}
       RUN_MIGRATIONS: "1"
       DISABLE_LOCAL_AUTH: "true"
       AUTH_PROXY_HEADER: Remote-User
@@ -88,7 +88,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://miniflux:${WONTON_SECRET_DB_PASSWORD:?核心没有注入数据库密码}@db:5432/miniflux?sslmode=disable
-      OWNER: ${WONTON_OWNER_NAME:?核心没有注入主人用户名}
+      OWNER: ${WONTON_OWNER_NAME:?核心没有注入用户名}
       TOKEN: ${WONTON_SECRET_API_KEY:?核心没有注入 API key}
     configs:
       - source: bootstrap_ensure
@@ -183,15 +183,14 @@ configs:
 x-wonton:
   spec: "0.4"
   id: app.miniflux.miniflux
-  version: 0.1.0
+  version: 0.1.1
   kind: app
-  title: { zh: Miniflux, en: Miniflux }
+  title: { en: Miniflux }
   description:
-    zh: 极简的 RSS 阅读器，订阅、过滤和阅读自己的订阅源
-    en: A minimalist RSS reader for subscribing to, filtering and reading feeds
+    zh: 订阅网站和博客，在一个地方读完更新
+    en: Follow sites and blogs and read every update in one place
   icon: icon.png
   notices: [NOTICE]
-  category: productivity
   screenshots:
     - screenshots/unread.png
     - screenshots/entry.png
@@ -199,21 +198,19 @@ x-wonton:
   author: { name: geraldpeng6, url: https://github.com/geraldpeng6 }
   homepage: https://miniflux.app
   license: Apache-2.0
-  tags: [miniflux, rss, 订阅, 阅读]
+  tags:
+    zh: [阅读]
+    en: [Reading]
   about:
     zh: |
-      Miniflux 是一个极简、固执己见的 RSS 阅读器：只要订阅源、未读和搜索，不要多余的功能。
+      在一个地方订阅网站和博客，读完更新。可以按规则过滤，也可以标已读、未读。
 
-      支持过滤规则和全文抓取，来去都很快。
-
-      Bot 可以列出未读、搜索文章和标记已读；工具没有标只读，每次调用都要在 App 里确认。
+      Bot 能列出未读、搜索文章和标记已读；工具没有标只读，每次调用都要你确认。
     en: |
-      Miniflux is a minimalist and opinionated RSS reader: feeds, unread entries and search, nothing more.
+      Follow sites and blogs in one place and read their updates. Filter by rules, and mark entries read or unread.
 
-      It supports filter rules and full-text fetching, and stays fast.
-
-      Bots can list unread entries, search and mark them read; the tools carry no read-only hints, so each call waits for your confirmation in the app.
-  release_notes: { zh: 第一版。, en: First release. }
+      The bot can list unread entries, search and mark them read; the tools carry no read-only hints, so each call waits for your confirmation.
+  release_notes: { zh: 名字和说明更新。, en: Product name and description update. }
   webui:
     service: miniflux
     port: 8080
@@ -238,7 +235,7 @@ x-wonton:
       generate: { bytes: 32 }
     mcp_token:
       generate: { bytes: 32 }
+  # 上游没写最低内存；本机空闲实测约 82M，取 128M。miniflux-mcp 只发布 amd64 镜像（docker manifest inspect）。
   requirements:
-    # miniflux-mcp 只发布 amd64 镜像。
     arch: [amd64]
-    memory: 512M
+    memory: 128M

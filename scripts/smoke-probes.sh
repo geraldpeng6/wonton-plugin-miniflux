@@ -1,13 +1,13 @@
 # Miniflux：sso=proxy（Remote-User）。MCP 经 mcp-proxy（/mcp/）；固定的 MCP 工具定义没标 readOnlyHint，
-# 总线会要求主人确认，这里只断言 tools/list 有工具。
+# 总线会要求用户确认，这里只断言 tools/list 有工具。
 SSO=proxy
 MCP=1
 SMOKE_NOTE="工具没标 readOnlyHint，仅 tools/list，未调"
 
 web_assert() { grep -qi 'miniflux'; }   # 标准输入：应用真实页面
 
-# 应用自己的接口要 X-Auth-Token：在主人会话里建一把 API key，再用它调应用自己的“当前用户”接口，
-# 断言用户名是主人且是管理员。
+# 应用自己的接口要 X-Auth-Token：在用户会话里建一把 API key，再用它调应用自己的“当前用户”接口，
+# 断言用户名是用户且是管理员。
 identity_check() {
   local page csrf key me
   page="$(curl -sS --noproxy '*' -b "$SMOKE_JAR" -c "$SMOKE_JAR" "$SMOKE_WEB_URL/keys")" || { echo "取 /keys 失败"; return 1; }
@@ -22,7 +22,7 @@ identity_check() {
   me="$(curl -sS --noproxy '*' -b "$SMOKE_JAR" -H "X-Auth-Token: $key" -H 'Accept: application/json' "$SMOKE_WEB_URL/v1/me")" ||
     { echo "/v1/me 失败：$me"; return 1; }
   jq -e --arg u "$SMOKE_OWNER" '.username == $u and .is_admin == true' <<<"$me" >/dev/null ||
-    { echo "当前用户不是主人管理员：$me"; return 1; }
+    { echo "当前用户不是用户管理员：$me"; return 1; }
 }
 
 mcp_check() { # 只断言 tools/list 出现本插件工具
