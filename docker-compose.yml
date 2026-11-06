@@ -11,7 +11,7 @@ name: miniflux
 
 services:
   db:
-    image: postgres:17.11-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+    image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
     # Alpine 官方镜像的 postgres 用户是 70:70，核心按此准备数据库目录属主。
     user: "70:70"
     read_only: true
@@ -79,7 +79,7 @@ services:
 
   # 等管理员建好后把 MCP 用的 API key 写进数据库。key 由核心生成并保留，重装沿用。
   bootstrap:
-    image: postgres:17.11-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+    image: postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
     depends_on:
       miniflux:
         condition: service_healthy
