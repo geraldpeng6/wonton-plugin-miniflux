@@ -8,17 +8,18 @@ web_assert() { grep -qi 'miniflux'; }   # 标准输入：应用真实页面
 # 应用自己的接口要 X-Auth-Token：在用户会话里建一把 API key，再用它调应用自己的“当前用户”接口，
 # 断言用户名是用户且是管理员。
 identity_check() {
-  local page csrf key me
-  page="$(curl -sS --noproxy '*' -b "$SMOKE_JAR" -c "$SMOKE_JAR" "$SMOKE_WEB_URL/keys")" || { echo "取 /keys 失败"; return 1; }
+  local page csrf key me base
+  base="${SMOKE_WEB_URL%/}"   # 网关 web_url 带尾斜杠，直接拼会得到 //keys 这类路径，miniflux 回 404 页面
+  page="$(curl -sS --noproxy '*' -b "$SMOKE_JAR" -c "$SMOKE_JAR" "$base/keys")" || { echo "取 /keys 失败"; return 1; }
   csrf="$(grep -oE 'data-csrf-token="[^"]+"' <<<"$page" | sed 's/.*="//; s/"//' | head -1)"
   [[ -n "$csrf" ]] || { echo "/keys 没有 csrf token"; return 1; }
-  curl -sS --noproxy '*' -o /dev/null -b "$SMOKE_JAR" -c "$SMOKE_JAR" -e "$SMOKE_WEB_URL/keys" \
-    --data-urlencode "csrf=$csrf" --data-urlencode "description=wonton-smoke" "$SMOKE_WEB_URL/keys/save" ||
+  curl -sS --noproxy '*' -o /dev/null -b "$SMOKE_JAR" -c "$SMOKE_JAR" -e "$base/keys" \
+    --data-urlencode "csrf=$csrf" --data-urlencode "description=wonton-smoke" "$base/keys/save" ||
     { echo "建 API key 失败"; return 1; }
-  page="$(curl -sS --noproxy '*' -b "$SMOKE_JAR" "$SMOKE_WEB_URL/keys")" || { echo "读回 /keys 失败"; return 1; }
+  page="$(curl -sS --noproxy '*' -b "$SMOKE_JAR" "$base/keys")" || { echo "读回 /keys 失败"; return 1; }
   key="$(grep -oE '[A-Za-z0-9]{60,}' <<<"$page" | head -1)"
   [[ -n "$key" ]] || { echo "/keys 里没有新 key"; return 1; }
-  me="$(curl -sS --noproxy '*' -b "$SMOKE_JAR" -H "X-Auth-Token: $key" -H 'Accept: application/json' "$SMOKE_WEB_URL/v1/me")" ||
+  me="$(curl -sS --noproxy '*' -b "$SMOKE_JAR" -H "X-Auth-Token: $key" -H 'Accept: application/json' "$base/v1/me")" ||
     { echo "/v1/me 失败：$me"; return 1; }
   jq -e --arg u "$SMOKE_OWNER" '.username == $u and .is_admin == true' <<<"$me" >/dev/null ||
     { echo "当前用户不是用户管理员：$me"; return 1; }
