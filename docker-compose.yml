@@ -8,13 +8,10 @@
 # 数据库放在插件里，数据在 WONTON_APP_DATA 下；抓取 RSS、图标和全文需要插件级出网权限。
 name: miniflux
 
-x-miniflux: &miniflux miniflux/miniflux:2.3.5@sha256:8fd6c3c434ecc3d4083306f83e03c0bb74c632e0f8378da5ead7e1773b0b89c9
-x-postgres: &postgres postgres:17.11-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
-x-mcp: &mcp jwonder/miniflux-mcp:0.8.0@sha256:bfe785ba2918f2f12073e8fde1ef1a72c0e5d61c3655e228a3b041312d24d836
 
 services:
   db:
-    image: *postgres
+    image: postgres:17.11-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
     # Alpine 官方镜像的 postgres 用户是 70:70，核心按此准备数据库目录属主。
     user: "70:70"
     read_only: true
@@ -34,7 +31,7 @@ services:
       start_interval: 2s
 
   miniflux:
-    image: *miniflux
+    image: miniflux/miniflux:2.3.5@sha256:8fd6c3c434ecc3d4083306f83e03c0bb74c632e0f8378da5ead7e1773b0b89c9
     # 无需写本地文件；数据库以外的运行状态只在内存中。
     user: "${PUID}:${PGID}"
     read_only: true
@@ -82,7 +79,7 @@ services:
 
   # 等管理员建好后把 MCP 用的 API key 写进数据库。key 由核心生成并保留，重装沿用。
   bootstrap:
-    image: *postgres
+    image: postgres:17.11-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
     depends_on:
       miniflux:
         condition: service_healthy
@@ -100,7 +97,7 @@ services:
     restart: "no"
 
   mcp:
-    image: *mcp
+    image: jwonder/miniflux-mcp:0.8.0@sha256:bfe785ba2918f2f12073e8fde1ef1a72c0e5d61c3655e228a3b041312d24d836
     # 二进制在 /root 下、/root 是 0700，镜像也没有 USER，只能以 root 跑；文件系统只读。
     read_only: true
     depends_on:
