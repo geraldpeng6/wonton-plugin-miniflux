@@ -1,8 +1,7 @@
+# shellcheck shell=bash
 # Miniflux：sso=proxy（Remote-User）。MCP 经 mcp-proxy（/mcp/）；固定的 MCP 工具定义没标 readOnlyHint，
 # 总线会要求用户确认，这里只断言 tools/list 有工具。
-SSO=proxy
-MCP=1
-SMOKE_NOTE="工具没标 readOnlyHint，仅 tools/list，未调"
+export SMOKE_NOTE="工具没标 readOnlyHint，仅 tools/list，未调"
 
 web_assert() { grep -qi 'miniflux'; }   # 标准输入：应用真实页面
 
