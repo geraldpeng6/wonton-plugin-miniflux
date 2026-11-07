@@ -27,8 +27,8 @@ identity_check() {
 
 mcp_check() { # 只断言 tools/list 出现本插件工具
   local n_mine
-  n_mine="$(jq --arg s "$SMOKE_SLUG" '[.[] | select(.name | startswith($s + "__"))] | length' "$SMOKE_TOOLS")"
-  [[ "$n_mine" -ge 1 ]] || { echo "tools/list 没有 $SMOKE_SLUG 前缀工具"; return 1; }
+  n_mine="$(jq --arg s "${E2E_SLUG:-${SMOKE_SLUG:-}}" '[.[] | select(.name | startswith($s + "__"))] | length' "${E2E_TOOLS:-${SMOKE_TOOLS:-}}")"
+  [[ "$n_mine" -ge 1 ]] || { echo "tools/list 没有 ${E2E_SLUG:-${SMOKE_SLUG:-}} 前缀工具"; return 1; }
 }
 
 # ---------- 数据钩子（e2e 六项冒烟用）----------
@@ -37,9 +37,15 @@ mcp_check() { # 只断言 tools/list 出现本插件工具
 smoke_base_url() { printf '%s' "${E2E_BASE:-${SMOKE_BASE:-}}"; }
 smoke_token() { printf '%s' "${E2E_TOKEN:-${SMOKE_TOKEN:-}}"; }
 
-smoke_core_login() { # <jar>：拿核心会话 Cookie（网关只认它）
-  curl -sS --noproxy '*' -o /dev/null -c "$1" \
-    --data-urlencode "token=$(smoke_token)" "$(smoke_base_url)/_wonton/login"
+smoke_core_login() { # <jar> <插件地址>：先拿核心会话 Cookie，再走一次插件首页的登录跳转——
+  # 网关的会话 Cookie 要落在插件主机上，应用的登录链和接口才认（两步都要，少一步后面全是 401）。
+  local base token
+  base="${E2E_BASE:-${SMOKE_BASE:-}}"
+  token="${E2E_TOKEN:-${SMOKE_TOKEN:-}}"
+  [[ -n "$base" && -n "$token" && -n "${2:-}" ]] || { echo "没有核心地址、主人令牌或插件地址"; return 1; }
+  curl -sS --noproxy '*' -o /dev/null -b "$1" -c "$1" \
+    --data-urlencode "token=$token" "$base/_wonton/login" &&
+    curl -sS --noproxy '*' -o /dev/null -L -b "$1" -c "$1" -H 'Accept: text/html' "${2%/}/"
 }
 
 smoke_web_url() { # <插件 id>：从核心 API 查插件 web_url，剥到 scheme://host（应用都在根路径）
@@ -77,24 +83,27 @@ data_write() { # 建一把 API key，用它建一个带随机标记的分类（�
   local jar base marker key out
   jar="${E2E_JAR:-${SMOKE_JAR:-}}"
   base="$(smoke_app_url)" || return 1
-  smoke_core_login "$jar" || { echo "核心会话建不了"; return 1; }
+  smoke_core_login "$jar" "$base" || { echo "核心会话建不了"; return 1; }
   key="$(miniflux_api_key "$jar" "$base" wonton-smoke-data)" || return 1
   [[ -n "$key" ]] || { echo "/keys 里没有新 key"; return 1; }
   marker="wonton-smoke-$(head -c12 /dev/urandom | od -An -tx1 | tr -d ' \n')"
-  out="$(curl -sS --noproxy '*' --fail-with-body -H "X-Auth-Token: $key" -H 'Content-Type: application/json' \
+  # API key 是给应用认身份的，核心网关还要它自己的会话 Cookie，所以两个头一起带。
+  out="$(curl -sS --noproxy '*' --fail-with-body -b "$jar" -H "X-Auth-Token: $key" -H 'Content-Type: application/json' \
     --data "{\"title\":\"$marker\"}" "$base/v1/categories")" || { echo "建分类失败：$out"; return 1; }
   printf '%s\n%s\n' "$key" "$marker" >"$(smoke_marker miniflux-category)"
 }
 
 data_check() { # 升级/重装后用写数据时的 key 读回分类（key 存在 api_keys 表，跟着数据卷活下来）
-  local base marker key cats
+  local base marker key cats jar
   base="$(smoke_app_url)" || return 1
+  jar="${E2E_JAR:-${SMOKE_JAR:-}}"
+  smoke_core_login "$jar" "$base" || { echo "核心会话建不了"; return 1; }
   {
     read -r key
     read -r marker
   } <"$(smoke_marker miniflux-category)" 2>/dev/null
   [[ -n "${key:-}" && -n "${marker:-}" ]] || { echo "没有 data_write 留下的标记"; return 1; }
-  cats="$(curl -sS --noproxy '*' --fail-with-body -H "X-Auth-Token: $key" "$base/v1/categories")" ||
+  cats="$(curl -sS --noproxy '*' --fail-with-body -b "$jar" -H "X-Auth-Token: $key" "$base/v1/categories")" ||
     { echo "读分类失败：$cats"; return 1; }
   jq -e --arg t "$marker" 'any(.[]; .title == $t)' <<<"$cats" >/dev/null ||
     { echo "标记分类不见了：$(head -c 200 <<<"$cats")"; return 1; }
