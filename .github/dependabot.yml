@@ -5,3 +5,7 @@ updates:
     directory: /
     schedule:
       interval: daily
+    # 数据库跨大版本会让旧数据目录起不来（要 pg_upgrade 或导出导入手动迁移），不让 Dependabot 自动开。
+    ignore:
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
