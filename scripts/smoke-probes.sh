@@ -1,7 +1,6 @@
 # shellcheck shell=bash
-# Miniflux：sso=proxy（Remote-User）。MCP 经 mcp-proxy（/mcp/）；固定的 MCP 工具定义没标 readOnlyHint，
-# 总线会要求用户确认，这里只断言 tools/list 有工具。
-export SMOKE_NOTE="工具没标 readOnlyHint，仅 tools/list，未调"
+# Miniflux：sso=proxy（Remote-User）。MCP 经 mcp-proxy（/mcp/）；上游镜像的 MCP 工具没标 readOnlyHint，
+# 总线会要求用户确认，所以不走 MCP_TOOL 那条路，mcp_check 里直接调只读工具。
 
 web_assert() { grep -qi 'miniflux'; }   # 标准输入：应用真实页面
 
@@ -25,10 +24,20 @@ identity_check() {
     { echo "当前用户不是用户管理员：$me"; return 1; }
 }
 
-mcp_check() { # 只断言 tools/list 出现本插件工具
-  local n_mine
-  n_mine="$(jq --arg s "${E2E_SLUG:-${SMOKE_SLUG:-}}" '[.[] | select(.name | startswith($s + "__"))] | length' "${E2E_TOOLS:-${SMOKE_TOOLS:-}}")"
-  [[ "$n_mine" -ge 1 ]] || { echo "tools/list 没有 ${E2E_SLUG:-${SMOKE_SLUG:-}} 前缀工具"; return 1; }
+mcp_check() { # tools/list 有本插件工具，再真实调一次只读工具 get_categories（默认分类 All 一定在）
+  local tools tool out
+  tools="${E2E_TOOLS:-${SMOKE_TOOLS:-}}"
+  jq -e --arg s "${E2E_SLUG:-${SMOKE_SLUG:-}}" 'any(.[]; .name | startswith($s + "__"))' "$tools" >/dev/null ||
+    { echo "tools/list 没有 ${E2E_SLUG:-${SMOKE_SLUG:-}} 前缀工具"; return 1; }
+  tool="$(jq -r --arg s "${E2E_SLUG:-${SMOKE_SLUG:-}}" \
+    '[.[] | select(.name == $s + "__get_categories")][0].name // empty' "$tools")"
+  if [[ -z "$tool" ]]; then
+    echo "tools/list 里没有 get_categories，现有：$(jq -r '.[].name' "$tools" | tr '\n' ' ')"
+    return 1
+  fi
+  out="$(mcp call "${E2E_MCP_URL:-${SMOKE_MCP_URL:-}}" "$tool" '{}')" ||
+    { echo "调用只读工具 $tool 失败：$(head -c 300 <<<"$out")"; return 1; }
+  grep -q 'All' <<<"$out" || { echo "$tool 结果里没有默认分类 All：$(head -c 300 <<<"$out")"; return 1; }
 }
 
 # ---------- 数据钩子（e2e 六项冒烟用）----------
