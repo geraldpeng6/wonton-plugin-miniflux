@@ -24,20 +24,20 @@ identity_check() {
     { echo "当前用户不是用户管理员：$me"; return 1; }
 }
 
-mcp_check() { # tools/list 有本插件工具，再真实调一次只读工具 get_categories（默认分类 All 一定在）
+mcp_check() { # tools/list 有本插件工具，再真实调一次只读工具 get_version（不碰上游实现的坑，只读且必有）
   local tools tool out
   tools="${E2E_TOOLS:-${SMOKE_TOOLS:-}}"
   jq -e --arg s "${E2E_SLUG:-${SMOKE_SLUG:-}}" 'any(.[]; .name | startswith($s + "__"))' "$tools" >/dev/null ||
     { echo "tools/list 没有 ${E2E_SLUG:-${SMOKE_SLUG:-}} 前缀工具"; return 1; }
   tool="$(jq -r --arg s "${E2E_SLUG:-${SMOKE_SLUG:-}}" \
-    '[.[] | select(.name == $s + "__get_categories")][0].name // empty' "$tools")"
+    '[.[] | select(.name == $s + "__get_version")][0].name // empty' "$tools")"
   if [[ -z "$tool" ]]; then
-    echo "tools/list 里没有 get_categories，现有：$(jq -r '.[].name' "$tools" | tr '\n' ' ')"
+    echo "tools/list 里没有 get_version，现有：$(jq -r '.[].name' "$tools" | tr '\n' ' ')"
     return 1
   fi
   out="$(mcp call "${E2E_MCP_URL:-${SMOKE_MCP_URL:-}}" "$tool" '{}')" ||
     { echo "调用只读工具 $tool 失败：$(head -c 300 <<<"$out")"; return 1; }
-  grep -q 'All' <<<"$out" || { echo "$tool 结果里没有默认分类 All：$(head -c 300 <<<"$out")"; return 1; }
+  grep -qE 'version' <<<"$out" || { echo "$tool 结果里没有版本信息：$(head -c 300 <<<"$out")"; return 1; }
 }
 
 # ---------- 数据钩子（e2e 六项冒烟用）----------
