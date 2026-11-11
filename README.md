@@ -1,6 +1,6 @@
 # Miniflux
 
-开发流程见[插件开发指南](https://github.com/geraldpeng6/wonton-docs/blob/main/develop.md)。
+开发流程见[插件开发指南](https://github.com/wontonapp/wonton-docs/blob/main/develop.md)。
 
 把 Miniflux 装进云吞：用户订阅、过滤和阅读 RSS，Bot 经 MCP 列出未读、搜索和标记已读。数据库是插件里的
 PostgreSQL，网页经网关代登录直接进用户账号。
