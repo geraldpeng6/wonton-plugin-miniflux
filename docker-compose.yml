@@ -186,10 +186,10 @@ x-wonton:
   id: app.miniflux.miniflux
   version: 0.1.2
   kind: app
-  title: { en: Miniflux }
+  title: { zh: 订阅阅读器（Miniflux）, en: News Reader (Miniflux) }
   description:
-    zh: 订阅网站和博客，在一个地方读完更新
-    en: Follow sites and blogs and read every update in one place
+    zh: 像订报纸：订下喜欢的博客和网站，新文章自动汇到一处，用干净的版面阅读，可以标星、按规则过滤。适合每天读很多订阅的人。
+    en: "Like a newspaper subscription for the web: follow the blogs and sites you like, get new posts in one clean reading view, star them and filter by rules. For heavy readers."
   icon: icon.png
   notices: [NOTICE]
   screenshots:
